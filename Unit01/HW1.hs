@@ -12,7 +12,7 @@ module HW1 where
 
 -- These import statement ensures you aren't using any "advanced" functions and types, e.g., lists.
 -- import Prelude (Bool (..), Eq (..), Int, Integer, Num (..), Ord (..), div, error, even, flip, id, mod, not, otherwise, undefined, ($), (&&), (.), (||))
-import Prelude (Bool (..), Eq (..), Int, Integer, Num (..), Ord (..), div, error, even, flip, id, mod, not, otherwise, undefined, ($), (&&), (.), (||))
+import Prelude (Bool (..), Eq (..), Int, Integer, Num (..), Ord (..), div, error, even, flip, id, mod, not, otherwise, undefined, ($), (&&), (.), (||), last)
 
 ------------------------------------------------
 -- DO NOT MODIFY ANYTHING ABOVE THIS LINE !!! --
@@ -104,15 +104,18 @@ rotateDigits n
 type Generator a = (a -> a, a -> Bool, a)
 
 nullGen :: Generator a -> Bool
-nullGen (_, predicate, seed) = predicate seed
+nullGen (_, predicate, seed) = not $ predicate seed
 
 lastGen :: Generator a -> a
-lastGen (_, _, seed) = seed
+lastGen (logic, predicate, seed) =
+  if nullGen (logic, predicate, seed)
+    then seed
+    else lastGen (logic, predicate, logic seed)
 
 lengthGen :: Generator a -> Int
 lengthGen (logic, predicate, seed) =
   let nextGen = (logic, predicate, logic seed)
-   in if nullGen nextGen then 0 else 1 + lengthGen nextGen
+   in if nullGen (logic, predicate, seed) then 0 else 1 + lengthGen nextGen
 
 sumGen :: Generator Integer -> Integer
 sumGen (logic, predicate, seed) =
@@ -130,12 +133,12 @@ anyGen :: Predicate a -> Generator a -> Bool
 anyGen predicate (logic, condition, seed) =
   let nextElement = logic seed
       nextGen = (logic, condition, nextElement)
-   in if nullGen nextGen then predicate nextElement else predicate nextElement || anyGen predicate nextGen
+   in (not (nullGen (logic, condition, seed)) && (predicate nextElement || anyGen predicate nextGen))
 
 
 allGen :: Predicate a -> Generator a -> Bool
 allGen predicate (logic, condition, seed) =
-  let nextElement = logic seed
+  let nextElement = logic seed 
       nextGen = (logic, condition, nextElement)
    in if nullGen nextGen then predicate nextElement else predicate nextElement && allGen predicate nextGen
 
@@ -144,27 +147,28 @@ noneGen :: Predicate a -> Generator a -> Bool
 noneGen predicate generator = not $ anyGen predicate generator
 
 countGen :: Predicate a -> Generator a -> Int
-countGen predicate (next, isEnd, seed) = yeildNext seed 0
-  where
-    yeildNext state count
-      | isEnd state = count
-      | predicate state = yeildNext (next state) (count + 1)
-      | otherwise = yeildNext (next state) count
+countGen predicate (logic, condition, seed) =
+  let nextElement = logic seed
+      nextGen = (logic, condition, nextElement)
+      countPredicate = if predicate nextElement then 1 else 0
+   in if nullGen nextGen then countPredicate else countPredicate + countGen predicate nextGen
 
 -- ********* --
 -- Section 4
 -- ********* --
+
 isPrime :: Integer -> Bool
 isPrime n
     | n < 2 = False
-    | n == 2 = True
+    | n == 2  || n == 3 = True
     | even n = False
-    | otherwise = allGen (\x -> n `mod` x /= 0) ((+ 2), (< (n `div` 2) + 1), 3)
+    | otherwise = allGen (\x -> n `mod` x /= 0) ((+ 2), (< (n `div` 2) + 1), 1)
 
 isSemiprime :: Integer -> Bool
-isSemiprime n
-    | n < 1 = False
-    | otherwise = countGen (\x -> n `mod` x == 0) ((+ 1), (<= (n `div` 2)), 2) == 2
+isSemiprime n = 
+  let countDivisors i | i > n `div` 2 = False
+      countDivisors i = ((n `mod` i == 0 && isPrime i && isPrime (n `div` i)) || countDivisors (i + 1))
+   in countDivisors 2
 
 goldbachPair :: Integer -> (Integer, Integer)
 goldbachPair n = findPair [(x, y) | x <- candidates, y <- candidates, x + y == n]
@@ -177,16 +181,19 @@ findPair [(x, y)] = (x, y)
 findPair ((x, y):candidates) = (x, y)
 
 goldbachPair' :: Integer -> (Integer, Integer)
--- goldbachPair' n = findLargestProductPair pairs
---     where
---         candidates = filter isPrime [2..n]
---         pairs = [(x, y) | x <- candidates, y <- candidates, x + y == n]
-
--- findLargestProductPair :: [(Integer, Integer)] -> (Integer, Integer)
+goldbachPair' n = findPair [(y, x) | x <- lowcandidates, y <- highcandidates, x + y == n]
+    where
+      lowcandidates = [x | x <- [n `div` 2, n `div` 2 - 1..2], isPrime x]
+      highcandidates = [y | y <- [n `div` 2..n], isPrime y]
 
 -- ***** --
 -- Bonus
 -- ***** --
 isCircularPrime :: Integer -> Bool
--- If you choose the implement this function, replace this with the actual implementation
-isCircularPrime = undefined
+isCircularPrime n = allGen isPrime (rotateDigits', (/= n), n)
+
+--Create new rotateDigits that doesnt get rid of the zero digit
+rotateDigits' :: Integer -> Integer
+rotateDigits' n
+     | n >= 0 = (n `div` 10) + ((n `mod` 10) * exponent (countDigits n - 1))
+      | otherwise = -(((-n) `div` 10) + (((-n) `mod` 10) * exponent (countDigits (-n) - 1)))
