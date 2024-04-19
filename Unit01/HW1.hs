@@ -165,26 +165,18 @@ isPrime n
     | otherwise = allGen (\x -> n `mod` x /= 0) ((+ 2), (< (n `div` 2) + 1), 1)
 
 isSemiprime :: Integer -> Bool
-isSemiprime n = 
-  let counter i | i > n `div` 2 = False
-      counter i = ((n `mod` i == 0 && isPrime i && isPrime (n `div` i)) || counter (i + 1))
-   in counter 2
+isSemiprime n = countGen (\x -> n `mod` x == 0 && isPrime x && isPrime (n `div` x)) ((+ 1), (<= n `div` 2), 2) > 0
+
 
 goldbachPair :: Integer -> (Integer, Integer)
-goldbachPair n = findPair [(x, y) | x <- candidates, y <- candidates, x + y == n]
-    where
-        candidates = [x | x <- [2..n], isPrime x]
-
-findPair :: [(Integer, Integer)] -> (Integer, Integer)
-findPair [] = error "No valid prime pairs found"
-findPair [(x, y)] = (x, y)
-findPair ((x, y):candidates) = (x, y)
+goldbachPair n = 
+  let findPair i = if isPrime i && isPrime (n - i) then (i, n - i) else findPair (i + 1)
+   in findPair 2
 
 goldbachPair' :: Integer -> (Integer, Integer)
-goldbachPair' n = findPair [(y, x) | x <- lowcandidates, y <- highcandidates, x + y == n]
-    where
-      lowcandidates = [x | x <- [n `div` 2, n `div` 2 - 1..2], isPrime x]
-      highcandidates = [y | y <- [n `div` 2..n], isPrime y]
+goldbachPair' n = 
+  let findPair i = if isPrime i && isPrime (n - i) then (n - i, i) else findPair (i - 1)
+   in findPair (n `div` 2)
 
 -- ***** --
 -- Bonus
