@@ -146,6 +146,7 @@ tails :: [a] -> [[a]]
 tails [] = [[]]
 tails xs = xs : tails (tail xs)
 
+
 -- -- Section 3: zips and products
 zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
 zipWith _ [] _ = []
@@ -183,7 +184,6 @@ data Board = Board {width :: Int, height :: Int} deriving (Show, Eq)
 data KnightPos = KnightPos {x :: Int, y :: Int} deriving (Show, Eq)
 data KnightMove = TopLeft | TopRight | RightTop | RightBottom | BottomRight | BottomLeft | LeftBottom | LeftTop deriving (Enum, Bounded, Show, Eq)
 newtype InvalidPosition = InvalidPosition KnightPos deriving (Show, Eq)
-
 
 -- Utility to get all knight moves. Don't worry about the implementation of this.
 allKnightMoves :: [KnightMove]
@@ -224,7 +224,6 @@ translate' (prevPos:currentPos:possionsList) =
     Just move -> case translate' (currentPos:possionsList) of
         Left e -> Left e
         Right moves -> Right $ move : moves
-
 
 -- tour driver code
 tour :: Board -> KnightPos -> Maybe [KnightMove]
