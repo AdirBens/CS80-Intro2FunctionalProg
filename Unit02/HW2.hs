@@ -5,10 +5,8 @@
 
 module HW2 where
 
-import Data.List (find, foldl', init)
+import Data.List (find, foldl')
 import Prelude (Bool (..), Bounded (..), Char, Either (..), Enum (..), Eq (..), Int, Integer, Maybe (..), Num (..), Ord (..), Show (..), String, all, and, any, concat, concatMap, const, curry, div, elem, error, even, filter, flip, foldl, foldr, fst, id, length, lines, lookup, map, mod, not, notElem, null, odd, otherwise, product, snd, sum, uncurry, undefined, unlines, unwords, words, (!!), ($), (&&), (++), (.), (||))
-import Language.Haskell.TH.Syntax (Quasi(qNewName))
-import Distribution.Compat.Lens (_1)
 
 ------------------------------------------------
 -- DO NOT MODIFY ANYTHING ABOVE THIS LINE !!! --
@@ -181,68 +179,72 @@ unzip ((x, y):pairs) = case unzip pairs of
 
 -- Section 4: Knight travels
 -- Position (0, 0) is the top-left corner.
+data Board = Board {width :: Int, height :: Int} deriving (Show, Eq)
 data KnightPos = KnightPos {x :: Int, y :: Int} deriving (Show, Eq)
-
-knightPos :: Int -> Int -> KnightPos
-knightPos x y = KnightPos {x = x, y = y} 
-
 data KnightMove = TopLeft | TopRight | RightTop | RightBottom | BottomRight | BottomLeft | LeftBottom | LeftTop deriving (Enum, Bounded, Show, Eq)
+newtype InvalidPosition = InvalidPosition KnightPos deriving (Show, Eq)
+
 
 -- Utility to get all knight moves. Don't worry about the implementation of this.
 allKnightMoves :: [KnightMove]
 allKnightMoves = [minBound .. maxBound]
 
-data Board = Board {width :: Int, height :: Int} deriving (Show, Eq)
-tour :: Board -> KnightPos -> Maybe [KnightMove]
+-- KnightMoves Translation using cases
+moveKnight :: KnightPos -> KnightMove -> KnightPos
+moveKnight (KnightPos x y) move = case move of
+  TopLeft     -> KnightPos (x - 2) (y - 1)
+  TopRight    -> KnightPos (x + 2) (y - 1)
+  BottomLeft  -> KnightPos (x - 2) (y + 1)
+  BottomRight -> KnightPos (x + 2) (y + 1)
+  LeftTop     -> KnightPos (x - 1) (y - 2)
+  LeftBottom  -> KnightPos (x - 1) (y + 2)
+  RightTop    -> KnightPos (x + 1) (y - 2)
+  RightBottom -> KnightPos (x + 1) (y + 2)
 
-newtype InvalidPosition = InvalidPosition KnightPos deriving (Show, Eq)
+-- Moves validations
+isValidMove :: Board -> KnightPos -> KnightMove -> Bool
+isValidMove (Board width height) (KnightPos x y) move = 
+  let (KnightPos nx ny) = moveKnight (KnightPos x y) move
+  in (nx >= 0) && (nx < width) && (ny >= 0) && (ny < height)
 
 translate :: KnightPos -> [KnightMove] -> [KnightPos]
-translate (KnightPos _ _) [] = []
-translate (KnightPos x y) (TopLeft:ms) = KnightPos (x-2) (y-1) : translate (KnightPos (x-2) (y-1)) ms
-translate (KnightPos x y) (TopRight:ms) = KnightPos (x+2) (y-1) : translate (KnightPos (x+2) (y-1)) ms
-translate (KnightPos x y) (RightTop:ms) = KnightPos (x+1) (y-2) : translate (KnightPos (x+1) (y-2)) ms
-translate (KnightPos x y) (RightBottom:ms) = KnightPos (x+1) (y+2) : translate (KnightPos (x+1) (y+2)) ms
-translate (KnightPos x y) (BottomRight:ms) = KnightPos (x+2) (y+1) : translate (KnightPos (x+2) (y+1)) ms
-translate (KnightPos x y) (BottomLeft:ms) = KnightPos (x-2) (y+1) : translate (KnightPos (x-2) (y+1)) ms
-translate (KnightPos x y) (LeftBottom:ms) = KnightPos (x-1) (y+2) : translate (KnightPos (x-1) (y+2)) ms
-translate (KnightPos x y) (LeftTop:ms) = KnightPos (x-1) (y-2) : translate (KnightPos (x-1) (y-2)) ms
+translate _ [] = [] 
+translate currentPos (move:moveList) = updatedPos : translate updatedPos moveList
+  where updatedPos = moveKnight currentPos move
 
+retraceMove :: KnightPos -> KnightPos -> Maybe KnightMove
+retraceMove prevPos currPos = find ((== currPos) . moveKnight prevPos) allKnightMoves
 
 translate' :: [KnightPos] -> Either InvalidPosition [KnightMove]
 translate' [] = Right []
 translate' [_] = Right []
-translate' (p1:p2:ps) = 
-    case moveKnight p1 p2 of
-        Nothing -> Left (InvalidPosition p2)
-        Just move -> case translate' (p2:ps) of
-            Left err -> Left err
-            Right moves -> Right (move:moves)
+translate' (prevPos:currentPos:possionsList) = 
+  case retraceMove prevPos currentPos of
+    Nothing -> Left $ InvalidPosition currentPos
+    Just move -> case translate' (currentPos:possionsList) of
+        Left e -> Left e
+        Right moves -> Right $ move : moves
 
-moveKnight :: KnightPos -> KnightPos -> Maybe KnightMove
-moveKnight (KnightPos x1 y1) (KnightPos x2 y2) = 
-    case (x2 - x1, y2 - y1) of
-        (-2, -1) -> Just TopLeft
-        (2, -1) -> Just TopRight
-        (1, -2) -> Just RightTop
-        (1, 2) -> Just RightBottom
-        (2, 1) -> Just BottomRight
-        (-2, 1) -> Just BottomLeft
-        (-1, 2) -> Just LeftBottom
-        (-1, -2) -> Just LeftTop
-        _ -> Nothing
 
-checkMove :: Board -> KnightPos -> KnightMove -> Maybe KnightPos
-checkMove (Board w h) (KnightPos x y) move = 
-    case move of
-        TopLeft -> if x - 2 >= 0 && y - 1 >= 0 then Just (KnightPos (x-2) (y-1)) else Nothing
-        TopRight -> if x + 2 < w && y - 1 >= 0 then Just (KnightPos (x+2) (y-1)) else Nothing
-        RightTop -> if x + 1 < w && y - 2 >= 0 then Just (KnightPos (x+1) (y-2)) else Nothing
-        RightBottom -> if x + 1 < w && y + 2 < h then Just (KnightPos (x+1) (y+2)) else Nothing
-        BottomRight -> if x + 2 < w && y + 1 < h then Just (KnightPos (x+2) (y+1)) else Nothing
-        BottomLeft -> if x - 2 >= 0 && y + 1 < h then Just (KnightPos (x-2) (y+1)) else Nothing
-        LeftBottom -> if x - 1 >= 0 && y + 2 < h then Just (KnightPos (x-1) (y+2)) else Nothing
-        LeftTop -> if x - 1 >= 0 && y - 2 >= 0 then Just (KnightPos (x-1) (y-2)) else Nothing
+-- tour driver code
+tour :: Board -> KnightPos -> Maybe [KnightMove]
+tour initialBoard initialPos = recTour initialBoard initialPos [initialPos] where
+    nPositionsToVisit = width initialBoard * height initialBoard
+
+    recTour :: Board -> KnightPos -> [KnightPos] -> Maybe [KnightMove]
+    recTour _ _ visited | length visited == nPositionsToVisit = Just []
+    recTour board pos visited = findValidPath allMoves
+      where
+        allMoves = [(move, newPos) | move <- allKnightMoves, let newPos = moveKnight pos move, isValidMove board pos move]
+
+        findValidPath :: [(KnightMove, KnightPos)] -> Maybe [KnightMove]
+        findValidPath [] = Nothing                                                -- There are No more moves to try
+        findValidPath ((move, newPos) : restMoves)
+            | newPos `elem` visited = findValidPath restMoves                     -- This square is already visited, try next move
+            | otherwise = case recTour board newPos (newPos : visited) of
+                Just movePath -> Just (move : movePath)                           -- Found a valid path, prepend the current move
+                Nothing -> findValidPath restMoves                                -- There is No valid path from this move
 
 -- Bonus (10 points)
--- mark :: Board -> [KnightPos] -> Either InvalidPosition [[Int]]
+mark :: Board -> [KnightPos] -> Either InvalidPosition [[Int]]
+mark = undefined

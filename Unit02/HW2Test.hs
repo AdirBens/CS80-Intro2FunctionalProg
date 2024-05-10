@@ -13,6 +13,8 @@ check testName output expected =
     then (True, "")
     else (False, testName ++ " Failed: Expected " ++ show expected ++ ", but got " ++ show output)
 
+valid8Tour = Just [TopLeft, RightTop, BottomRight, LeftBottom, BottomLeft, TopLeft, RightTop, BottomRight, LeftBottom, TopLeft, TopRight, BottomRight, LeftBottom, BottomLeft, TopLeft, RightTop, BottomRight, LeftBottom, TopLeft, TopRight, BottomLeft, TopLeft, RightTop, BottomRight, LeftBottom, TopLeft, TopRight, BottomRight, LeftBottom, BottomLeft, TopLeft, RightTop,  RightTop, BottomRight, LeftBottom, TopLeft, TopRight, BottomLeft, TopLeft, RightTop, BottomRight, LeftBottom, TopLeft, TopRight, LeftBottom, BottomLeft, TopLeft, RightTop, BottomLeft, TopLeft, RightTop, BottomRight, TopLeft, RightTop, BottomRight, LeftBottom, BottomLeft, TopLeft, RightTop, BottomRight, LeftBottom, BottomLeft, TopLeft, RightTop]
+
 -- List of all test cases, structured for easy extension
 testCases :: [IO (Bool, String)]
 testCases =
@@ -107,7 +109,26 @@ testCases =
     -- Tests for zipFail
     return $ check "zipFail Test 1" (zipFail [1, 2] "foobar") (Left ErrorFirst :: Either ZipFail [(Int, Char)]),
     return $ check "zipFail Test 2" (zipFail [1 ..] "foobar") (Left ErrorSecond :: Either ZipFail [(Int, Char)]),
-    return $ check "zipFail Test 3" (zipFail [1, 2, 3] "foo") (Right [(1, 'f'), (2, 'o'), (3, 'o')] :: Either ZipFail [(Int, Char)])
+    return $ check "zipFail Test 3" (zipFail [1, 2, 3] "foo") (Right [(1, 'f'), (2, 'o'), (3, 'o')] :: Either ZipFail [(Int, Char)]),
+
+    -- Tests for translate
+    return $ check "translate Test 1" (HW2.translate (KnightPos (-2) (-1)) [TopLeft, TopRight]) [KnightPos (-4) (-2), KnightPos (-2) (-3)],
+    return $ check "translate Test 2" (HW2.translate (KnightPos 2 3) [RightTop, BottomRight]) [KnightPos 3 1, KnightPos 5 2],  -- Two valid moves
+    return $ check "translate Test 3" (HW2.translate (KnightPos 0 0) []) [], -- No moves
+
+    -- Tests for translate'
+    return $ check "translate' Test 1" (HW2.translate' [ KnightPos 0 0, KnightPos 1 2]) (Right [ RightBottom ]),
+    return $ check "translate' Test 2" (HW2.translate' [ KnightPos 0 0, KnightPos 1 2, KnightPos 0 0, KnightPos 2 1]) (Right [ RightBottom , LeftTop , BottomRight ]),
+    return $ check "translate' Test 3" (HW2.translate' [ KnightPos 0 0, KnightPos ( -1) ( -2)]) (Right [ LeftTop ]),
+    return $ check "translate' Test 4" (HW2.translate' [ KnightPos 0 0, KnightPos 2 2]) (Left ( InvalidPosition (KnightPos { x = 2, y = 2 }))),
+
+    -- Tests for tour
+    return $ check "tour Test 0 (from pdf)" (HW2.tour (Board 5 5) (KnightPos 0 0)) (Just [RightBottom , TopRight , TopLeft , RightBottom , BottomRight , BottomLeft , TopLeft , RightTop , TopRight , RightBottom , LeftBottom , TopLeft , LeftTop , TopRight , BottomRight , LeftBottom , BottomLeft , LeftTop , TopRight , TopRight , LeftBottom , RightBottom , TopLeft , BottomLeft]),  -- Complete tour on 5x5 board
+    return $ check "tour Test 5" (HW2.tour (Board 1 1) (KnightPos 0 0)) (Just []),  -- standing knight
+    return $ check "tour Test 2" (HW2.tour (Board 4 4) (KnightPos 0 0)) Nothing,  -- No tour possible if starting position doesn't allow full coverage
+    return $ check "tour Test 3" (HW2.tour (Board 3 3) (KnightPos 0 0)) Nothing,  -- No tour possible on a smaller board (3x3)
+    return $ check "tour Test 4" (HW2.tour (Board 6 6) (KnightPos 0 0)) (Just [RightBottom,TopRight,TopLeft,RightBottom,TopLeft,TopRight,RightBottom,TopLeft,LeftBottom,RightBottom,RightTop,BottomLeft,BottomRight,TopRight,RightTop,LeftTop,BottomLeft,BottomLeft,RightBottom,BottomRight,TopRight,TopLeft,RightTop,RightBottom,LeftBottom,TopLeft,BottomLeft,RightTop,BottomRight,BottomRight,LeftTop,RightTop,TopLeft,RightBottom,RightTop]) -- board (6x6)
+    -- return $ check "tour Test 4" (HW2.tour (Board 8 8) (KnightPos 0 0)) (valid8Tour)  --  8x8 board
   ]
 
 -- Main function to run all tests and print results selectively
